@@ -1,20 +1,20 @@
-# Sử dụng image nhẹ hơn
+# Sử dụng Node.js 18 trên Alpine để tối ưu kích thước image
 FROM node:18-alpine
 
-# Đặt thư mục làm việc trong container
+# Thiết lập thư mục làm việc
 WORKDIR /app
 
-# Copy file package.json và package-lock.json trước (tối ưu cache layer)
-COPY package*.json ./
+# Chỉ copy package.json và package-lock.json để tối ưu cache
+COPY package.json package-lock.json ./
 
-# Cài đặt dependencies
-RUN npm install --production
+# Cài đặt dependencies (chỉ cài package cần thiết)
+RUN npm install --only=production
 
-# Copy toàn bộ source code
+# Copy toàn bộ mã nguồn vào container
 COPY . .
 
-# Mở cổng cho ứng dụng
+# Expose cổng 8000
 EXPOSE 8000
 
-# Chạy ứng dụng
-CMD ["node", "app.js"]
+# Khởi động ứng dụng
+CMD ["npm", "start"]
