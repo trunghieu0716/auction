@@ -8,6 +8,7 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var path = require('path');
 
+// setting for static files.
 app.use(express.static(path.join(__dirname, 'public')));
 
 require('dotenv').config();
@@ -39,7 +40,20 @@ mailer.extend(app, {
 });
 
 app.get('/', function (req, res) {
-    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'));
+    console.log('GET / called');
+    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'), function (err) {
+        if (err) {
+            console.log('Error sending file:', err);
+            res.status(err.status).end();
+        } else {
+            console.log('Sent:', 'index.html');
+        }
+    });
+});
+
+app.use((req, res, next) => {
+    console.log(`Request URL: ${req.url}`);
+    next();
 });
 
 app.get('/single', function (req, res) {
@@ -53,6 +67,30 @@ app.get('/login', function (req, res) {
 app.get('/register', function (req, res) {
     res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'register.html'));
 });
+
+// index page.
+app.get('/', function (req, res) {
+    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'));
+});
+
+app.get('/index.html', function (req, res) {
+    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'));
+});
+
+// assces page
+app.get('/:page', function (req, res) {
+    let page = req.params.page;
+    let filePath = path.join(__dirname, 'views', 'frontend', 'layouts', page);
+    
+    res.sendFile(filePath, function (err) {
+        if (err) {
+            console.log('Error sending file:', err);
+            res.status(404).send('Page not found');
+        }
+    });
+});
+
+
 
 // load auth's router.
 app.use('/auth', AuthRouter);
@@ -69,7 +107,7 @@ io.on('connection', function (socket) {
     console.log('a user connected');
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.APP_PORT || 8000;
 http.listen(PORT, () => {
     console.log("server running at port ", PORT);
 });
