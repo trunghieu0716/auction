@@ -13,6 +13,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 require('dotenv').config();
 
+const mysql = require('mysql2');
+
+// Tạo kết nối đến MySQL trên Railway
+const connection = mysql.createConnection(process.env.DATABASE_URL);
+
+connection.connect(err => {
+    if (err) {
+        console.error('❌ MySQL Connection Error:', err);
+        return;
+    }
+    console.log('✅ Connected to MySQL on Railway!');
+});
+
+
 var AuthRouter = require('./router/auth.router');
 var AdminRouter = require('./router/admin.router');
 var product = require('./apiController/ProductController');
