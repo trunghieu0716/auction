@@ -7,121 +7,90 @@ var mailer = require('express-mailer');
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var path = require('path');
-
-// setting for static files.
-app.use(express.static(path.join(__dirname, 'public')));
-
 require('dotenv').config();
 
-const mysql = require('mysql2');
+// Cấu hình MySQL từ Railway
+const mysql = require('mysql2/promise'); // Dùng `promise` để hỗ trợ async/await
+if (!process.env.DATABASE_URL) {
+    console.error("❌ DATABASE_URL chưa được thiết lập. Hãy kiểm tra biến môi trường.");
+    process.exit(1);
+}
 
-// Tạo kết nối đến MySQL trên Railway
-const connection = mysql.createConnection(process.env.DATABASE_URL);
+const pool = mysql.createPool(process.env.DATABASE_URL);
 
-connection.connect(err => {
-    if (err) {
-        console.error('❌ MySQL Connection Error:', err);
-        return;
+// Kiểm tra kết nối đến MySQL
+(async () => {
+    try {
+        const connection = await pool.getConnection();
+        console.log("✅ Connected to MySQL on Railway!");
+        connection.release(); // Giải phóng kết nối
+    } catch (error) {
+        console.error("❌ MySQL Connection Error:", error);
+        process.exit(1); // Dừng chương trình nếu không thể kết nối
     }
-    console.log('✅ Connected to MySQL on Railway!');
-});
+})();
 
-
-var AuthRouter = require('./router/auth.router');
-var AdminRouter = require('./router/admin.router');
-var product = require('./apiController/ProductController');
-var user = require('./apiController/UserController');
-
+// Cấu hình Middleware
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
 app.use(morgan('dev'));
 
-// add settings for app.
-app.set('view engine', 'ejs');
-
-// setting for mailer.
+// Cấu hình Mailer
 mailer.extend(app, {
     from: process.env.EMAIL_FROM,
-    host: process.env.MAIL_HOST, // hostname
-    secureConnection: process.env.EMAIL_SECURE, // use SSL
-    port: process.env.EMAIL_PORT, // port for secure SMTP
-    transportMethod: process.env.EMAIL_TRANSPORT_METHOD, // default is SMTP. Accepts anything that nodemailer accepts
+    host: process.env.MAIL_HOST,
+    secureConnection: process.env.EMAIL_SECURE === "true", // Chuyển sang Boolean
+    port: parseInt(process.env.EMAIL_PORT, 10) || 587, // Đảm bảo port là số
+    transportMethod: process.env.EMAIL_TRANSPORT_METHOD || "SMTP",
     auth: {
         user: process.env.EMAIL_AUTH_USERNAME,
         pass: process.env.EMAIL_AUTH_PASSWORD
     }
 });
 
-app.get('/', function (req, res) {
+// Import Routes
+var AuthRouter = require('./router/auth.router');
+var AdminRouter = require('./router/admin.router');
+var product = require('./apiController/ProductController');
+var user = require('./apiController/UserController');
+
+app.use('/auth', AuthRouter);
+app.use('/admin', AdminRouter);
+app.use('/product', product);
+app.use('/user', user);
+
+// Routes
+app.get('/', (req, res) => {
     console.log('GET / called');
-    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'), function (err) {
+    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'), (err) => {
         if (err) {
-            console.log('Error sending file:', err);
-            res.status(err.status).end();
-        } else {
-            console.log('Sent:', 'index.html');
+            console.error('Error sending file:', err);
+            res.status(404).end();
         }
     });
 });
 
-app.use((req, res, next) => {
-    console.log(`Request URL: ${req.url}`);
-    next();
-});
-
-app.get('/single', function (req, res) {
-    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'single.html'));
-});
-
-app.get('/login', function (req, res) {
-    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'login.html'));
-});
-
-app.get('/register', function (req, res) {
-    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'register.html'));
-});
-
-// index page.
-app.get('/', function (req, res) {
-    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'));
-});
-
-app.get('/index.html', function (req, res) {
-    res.sendFile(path.join(__dirname, 'views', 'frontend', 'layouts', 'index.html'));
-});
-
-// assces page
-app.get('/:page', function (req, res) {
+app.get('/:page', (req, res) => {
     let page = req.params.page;
     let filePath = path.join(__dirname, 'views', 'frontend', 'layouts', page);
-    
-    res.sendFile(filePath, function (err) {
+
+    res.sendFile(filePath, (err) => {
         if (err) {
-            console.log('Error sending file:', err);
+            console.error('Error sending file:', err);
             res.status(404).send('Page not found');
         }
     });
 });
 
-
-
-// load auth's router.
-app.use('/auth', AuthRouter);
-
-// admin routes.
-app.use('/admin', AdminRouter);
-
-// load product's router.
-app.use('/product', product);
-app.use('/user', user);
-
-// server open
-io.on('connection', function (socket) {
-    console.log('a user connected');
+// Socket.io event
+io.on('connection', (socket) => {
+    console.log('A user connected');
 });
 
+// Khởi động server
 const PORT = process.env.APP_PORT || 8000;
 http.listen(PORT, () => {
-    console.log("server running at port ", PORT);
+    console.log(`🚀 Server running at port ${PORT}`);
 });
