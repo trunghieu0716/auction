@@ -1,5 +1,6 @@
 var mysql = require('mysql')
 var	q = require('q');
+require('dotenv').config();
 
 // var configdb = {
 // 	host: 'localhost',
@@ -9,11 +10,19 @@ var	q = require('q');
 // }
 
 var configdb = {
-	host: 'crossover.proxy.rlwy.net',
-	user: 'root',
-	password: 'GhKBYSqkUGpSsdMFOeekKMYSiyvYRTII',
-	database: 'railway'
-}
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    port: process.env.DB_PORT
+};
+
+// var configdb = {
+// 	host: 'crossover.proxy.rlwy.net',
+// 	user: 'root',
+// 	password: 'GhKBYSqkUGpSsdMFOeekKMYSiyvYRTII',
+// 	database: 'railway'
+// }
 
 exports.load = function(sql) {
 	var d = q.defer();
